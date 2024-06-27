@@ -240,7 +240,13 @@ src: url("./fonts/Avenir_Book.ttf");
                 </td>
                 <td align="center" width="160px">
                     <center>
-                        <span style="font-size:16px"><a href="https://inc.fudan.edu.cn/incenglish/wuewwao/list.htm">Yue
+                        <span style="font-size:16px"><a href="https://inc.fudan.edu.cn/incenglish/wuewwao/list.htm">Wenjun
+                                Zhu</a><sup>1</sup></span>
+                    </center>
+                </td>
+                <td align="center" width="160px">
+                    <center>
+                        <span style="font-size:16px"><a href="https://inc.fudan.edu.cn/incenglish/WenjunZhu/list.htm">Yue
                                 Gao</a><sup>1</sup></span>
                     </center>
                 </td>
@@ -352,111 +358,160 @@ src: url("./fonts/Avenir_Book.ttf");
 
     <p>
         <center>
-            <img class="rounded" src="./figure/teaser.png" width="500px">
+            <img src="./figures/splitllm_fram.jpeg" width="650px">
         </center>
     </p>
 
-    <p>
-        Tremendous efforts have been made to enable large-scale model fine-tuning on memory-limited hardware devices
-        using quantization
-        and adapters. Methods
-        such as <a href="https://arxiv.org/abs/2305.14314">QLoRA</a> have demonstrated the feasibility of fine-tuning a
-        7B LLM
-        with just 6GB of GPU memory.
-    </p>
-    <!-- <br /> -->
-    <p>
-        <center>
-            <img class="rounded" src="./assets/qlora.png" width="600px">
-        </center>
-    </p>
-    <!-- <br> -->
-    <center>
-        <p style="color: red;"><i class="fa-solid fa-angle-right"></i> But what about model pre-training? Can we
-            leverage the memory-efficient algorithms when training from scratch? </p>
-    </center>
-    <p>
-        We demonstrate that it is possible to train with LoRA alone to match standard pre-training performance.
-        This enables training of much larger models using computing devices with fraction of the <b>memory and
-            communication cost</b>.
-    </p>
-
-    <p>Our method, <b>LoRA-the-Explorer (LTE)</b>, involves the following steps:</p>
+    <p><b>SplitLoRA</b> consists of three fundamental components:</p>
     <ul>
-        <li>Initialize each device with a unique set of LoRA parameters.</li>
-        <li>For each device, train on a different partition of the dataset using a local optimizer.</li>
-        <li>Every <i>T</i> iterations, communicate the LoRA parameters across devices (or to the parameter server).</li>
-        <li>Average the effective LoRA parameters to compute the update for the main parameters.</li>
-        <li>Communicate the updated main parameters back to the devices and repeat the process.</li>
+        <li><strong>Client server</strong> has sufficient computing capability to execute the forward propagation (FP) and back-propagation (BP) of the client-side pre-trained model.</li>
+        <li><strong>Central server</strong> is a powerful computing entity responsible for performing server-side pre-trained model fine-tuning.</li>
+        <li><strong>Local aggregation server</strong> takes charge of synchronizing client-side LoRA adapters, periodically aggregating them from all participating edge servers.</li>
     </ul>
-    <p>This approach ensures that the LoRA parameters serve as individual "gradient" updates for the main set of
-        weights. By doing so, it enables collaborative training of the model using LoRA adapters ... similar to an open
-        source GitHub project :) </p>
 
-    <p>
-        <center>
-            <img class="rounded" src="./assets/lte-diagram.png" width="800px">
-        </center>
-    </p>
-
+    <p>Our <b>SplitLoRA</b> framework involves the following steps:</p>
+    <ul>
+        <li>
+            Split Fine-Tuning Stage
+            <ol>
+                <li>Client-side Model Forward Propagation</li>
+                <li>Activations Transmissions</li>
+                <li>Server-side Model Forward Propagation and Back-propagation</li>
+                <li>Activations' Gradients Transmissions</li>
+                <li>Client-side Model Back-propagation</li>
+            </ol>
+        </li>
+        <li>
+            Client-side LoRA Adapter Aggregation Stage
+            <ol>
+                <li>Client-side LoRA Adapters Uploading</li>
+                <li>Client-side LoRA Adapter Aggregation</li>
+                <li>Client-side LoRA Adapter Downlink Transmissions</li>
+            </ol>
+        </li>
+    </ul>
 
     <hr>
     <center>
         <h2> Key observations </h2>
     </center>
-    <p>
-        <b style="color: blue;">Observation 1</b>: Models trained with LoRA alone cannot fully recover pre-training
-        performance. However, increasing the
-        rank r or employing a multi-head representation enables these models to achieve the desired performance levels.
-    </p>
-    <p>
-        <center>
-            <img class="rounded" src="./assets/lora_comparison.png" width="500px">
-        </center>
-    </p>
+
+    <p>We compare <b>SplitLoRA</b> with two canonical benchmarks:</p>
+    <ul>
+        <li>
+            <b>Centralized LoRA (CenLoRA):</b> Client server collects raw data from other participating servers for full model fine-tuning with LoRA adapters.
+        </li>
+        <li>
+            <b>Federated LoRA (FedLoRA):</b> Each participating client server locally fine-tunes the full model and then transmits the updated LoRA adapters to the local aggregation server for adapter aggregation.
+        </li>
+    </ul>
+
+    <center>
+        <h3> Performance Evaluation </h3>
+    </center>
 
     <p>
-        <b style="color: blue;">Observation 2</b>: We empirically observe the effective rank of the gradients increases
-        over time, which signals the inability to match performance with a single LoRA alone.
+        <b style="color: blue;">1. </b>Perplexity (PPL) performance evaluation, where a lower PPL indicates better predictive performance.
     </p>
-    <p>
-        <center>
-            <img class="rounded" src="./assets/erank.png" width="700px">
-        </center>
-    </p>
-
-
-    <br>
-    <p>
-        <b style="color: blue;">Observation 3</b>: Sequential merging, while a viable approach to recover the full-rank
-        weight representation, is unable to recover the full-model pre-training performance in practice.
-        Suggesting the need for full-rank update iterates.
-    </p>
-    </p>
-    <p>
-        <center>
-            <img class="rounded" src="./assets/merge_lora.png" width="500px">
-        </center>
-    </p>
+    <center>
+    <table border="1"> 
+        <tr> 
+            <th>GPT2-S</th> 
+            <th>GPT2-M</th> 
+        </tr> 
+        <tr> 
+            <td><img src= 
+                "./figures/PPL_GPT2-S.jpeg" 
+                width="300"> 
+            </td> 
+            <td><img src= 
+                "./figures/PPL_GPT2-M.jpeg" 
+                width="300">
+            </td> 
+        </tr> 
+    </table>
+    </center>
 
     <p>
-        <b style="color: blue;">Observation 4</b>: We demonstrate that parallel LoRA merging can precisely replicate the
-        full-rank weight update.
-        Furthermore, we show that even with infrequent synchronization, our method remains effective for pre-training.
+        <b style="color: blue;">2. </b>Converged accuracy for E2E NLG challenge.
     </p>
-    <center> Various datasets on ViT-S-32</center>
+    <center>
+    <table border="1"> 
+        <tr> 
+            <th>GPT2-S</th> 
+            <th>GPT2-M</th> 
+        </tr> 
+        <tr> 
+            <td><img src= 
+                "./figures/Table-S.png" 
+                width="350"> 
+            </td> 
+            <td><img src= 
+                "./figures/Table-M.png" 
+                width="350">
+            </td> 
+        </tr> 
+    </table>
+    </center>
+
     <p>
-        <center>
-            <img class="rounded" src="./assets/vit_datasets.png" width="700px">
-        </center>
+        <b style="color: blue;">3. </b>Convergence rate.
+    </p>
+    <center>
+    <table border="1"> 
+        <tr> 
+            <th>GPT2-S</th> 
+            <th>GPT2-M</th> 
+        </tr> 
+        <tr> 
+            <td><img src= 
+                "./figures/convergence rate GTP_S.jpeg" 
+                width="300"> 
+            </td> 
+            <td><img src= 
+                "./figures/convergence rate GTP_M.jpeg" 
+                width="300">
+            </td> 
+        </tr> 
+    </table>
+    </center>
+
+    <p>
+        <b style="color: blue;">4. </b>The number of trainable parameters.
+    </p>
+    <center>
+        <img src="./figures/train_para.png" width="350px">
+    </center>
+
+    <p>
+        <i>For more detailed experimental results, please refer to our paper.</i>
     </p>
 
-    <center> ImageNet100 on ViT scales</center>
-    <p>
-        <center>
-            <img class="rounded" src="./assets/vit_scale.png" width="700px">
-        </center>
-    </p>
+    <center>
+        <h2> Future Direction about <b>SplitLoRA</b> </h2>
+    </center>
+
+    <ul>
+        <li>
+            <b>Model Splitting:</b> Selecting the cut layer allows control over the data volume transmitted to the central server. Moreover, the cut layer affects the division of computing workload between client devices and the central server.
+        </li>
+        <li>
+            <b>Heterogeneous Configuration:</b> In practice, the available resources among different client servers/devices vary significantly, leading to vastly different training times and causing a severe straggler problem in model aggregation. Therefore, it is essential to configure heterogeneous fine-tuning module structures for client servers/devices with varying resources.
+        </li>
+        <li>
+            <b>Efficiency:</b> The practical implementation of SplitLoRA typically necessitates leveraging private data residing on edge devices (e.g., smartphones and laptops) with lower computing and storage resources than data centers for LLM fine-tuning. Designing efficient model compression and quantization techniques to achieve a more storage, communication, and computation-efficient SL LLM fine-tuning framework is warranted.
+        </li>
+        <li>
+            <b>Privacy Preservation:</b> Due to the powerful capabilities of LLMs, fine-tuning them may inadvertently memorize and expose detailed information. Therefore, it is crucial to design efficient privacy-preserving mechanisms and strategies that ensure the training performance and effectiveness of SplitLoRA without compromising individual privacy.
+        </li>
+    </ul>
+
+
+
+
+
+
+<!-- 
 
     <center> ImageNet100 on MLP-Mixer scales</center>
     <p>
@@ -505,19 +560,17 @@ src: url("./fonts/Avenir_Book.ttf");
     <p>Through addressing these open questions, we hope to envision a collaborative ecosystem embodying the concept of
         the "wisdom of the crowd." </p>
 
-    <br>
+    <br> -->
 
     <hr>
     <h3 style="margin-top: -1.6em;text-align:left"></h3>
 
-
+    <br><br>
     <div
         style="background: #FFF1E5; overflow: auto; width: auto; border: none; padding: 1em 1em 0.0em 1em; max-width: 100%; border-radius: 10px;">
         <pre style="font-size: 10pt; margin: 0; text-align: left; white-space: pre-wrap; word-wrap: break-word;">
-    @article{huh2024lte,
-        title={Training Neural Networks from Scratch with Parallel Low-Rank Adapters},
-        author={Huh, Minyoung and Cheung, Brian and Bernstein, Jeremy 
-                and Isola, Phillip and Agrawal, Pulkit},
+    @article{xx,
+        xxxx
         journal={arXiv preprint arXiv:2402.16828},
         year={2024}
     }
@@ -528,7 +581,7 @@ src: url("./fonts/Avenir_Book.ttf");
 
 
 
-    <hr>
+    <!-- <hr>
     <center>
         <h2> Acknowledgements </h2>
     </center>
@@ -538,7 +591,7 @@ src: url("./fonts/Avenir_Book.ttf");
         BC was funded by the NSF STC award CCF-1231216.
         We thank Han Guo, Lucy Chai, Wei-Chiu Ma, Eunice Lee, Dave Epstein, and Yen-Chen Lin for their feedback and
         emotional support on the project. </p>
-    <br><br>
+    <br><br> -->
 
     <br><br>
     <a href="https://richzhang.github.io/colorization/">Website template edited from Colorful Colorization</a>.
